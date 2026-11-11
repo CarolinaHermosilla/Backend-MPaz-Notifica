@@ -6,11 +6,14 @@ import cl.duoc.mpaz.historial.entities.RegistroHistorico;
 import cl.duoc.mpaz.historial.exceptions.RecursoNoEncontradoException;
 import cl.duoc.mpaz.historial.repository.RepositorioHistorial;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
 public class HistorialService {
+
+    private static final ZoneId ZONA_HORARIA = ZoneId.of("America/Santiago");
 
     private final RepositorioHistorial repositorio;
 
@@ -33,7 +36,7 @@ public class HistorialService {
                 .titulo(solicitud.titulo())
                 .tipo(solicitud.tipo() == null ? "Sin tipo" : solicitud.tipo())
                 .canal(solicitud.canal() == null ? "Sin canal" : solicitud.canal())
-                .fecha(solicitud.fecha() == null ? LocalDateTime.now() : solicitud.fecha())
+                .fecha(solicitud.fecha() == null ? LocalDateTime.now(ZONA_HORARIA) : solicitud.fecha())
                 .remitenteId(solicitud.remitenteId() == null ? 0L : solicitud.remitenteId())
                 .remitenteNombre(solicitud.remitenteNombre() == null ? "Sin remitente" : solicitud.remitenteNombre())
                 .cantidadDestinatarios(destinatarios.size())

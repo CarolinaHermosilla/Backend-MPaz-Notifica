@@ -12,6 +12,7 @@ import cl.duoc.mpaz.mensajeria.exceptions.RecursoNoEncontradoException;
 import cl.duoc.mpaz.mensajeria.exceptions.SolicitudInvalidaException;
 import cl.duoc.mpaz.mensajeria.repository.RepositorioMensajes;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -22,6 +23,8 @@ public class MensajeService {
 
     public static final String BORRADOR = "Borrador";
     public static final String ENVIADA = "Enviada";
+
+    private static final ZoneId ZONA_HORARIA = ZoneId.of("America/Santiago");
 
     private static final Set<String> CANALES = Set.of("Correo electrónico", "SMS", "WhatsApp");
 
@@ -70,7 +73,7 @@ public class MensajeService {
         }
         mensaje.setCanal(solicitud.canal());
         mensaje.setEstado(ENVIADA);
-        mensaje.setFecha(LocalDateTime.now());
+        mensaje.setFecha(LocalDateTime.now(ZONA_HORARIA));
         Mensaje guardado = repositorio.guardar(mensaje);
 
         registradorHistorial.registrar(new RegistroHistoricoRequest(
