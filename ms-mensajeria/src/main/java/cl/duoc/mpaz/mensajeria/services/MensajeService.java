@@ -1,6 +1,6 @@
 package cl.duoc.mpaz.mensajeria.services;
 
-import cl.duoc.mpaz.mensajeria.client.HistorialClient;
+import cl.duoc.mpaz.mensajeria.client.RegistradorHistorial;
 import cl.duoc.mpaz.mensajeria.dto.DestinatarioRequest;
 import cl.duoc.mpaz.mensajeria.dto.EnvioRequest;
 import cl.duoc.mpaz.mensajeria.dto.MensajeRequest;
@@ -10,14 +10,12 @@ import cl.duoc.mpaz.mensajeria.entities.Mensaje;
 import cl.duoc.mpaz.mensajeria.entities.MensajeDestinatario;
 import cl.duoc.mpaz.mensajeria.exceptions.RecursoNoEncontradoException;
 import cl.duoc.mpaz.mensajeria.exceptions.SolicitudInvalidaException;
-import cl.duoc.mpaz.mensajeria.repository.MensajeDestinatarioRepository;
-import cl.duoc.mpaz.mensajeria.repository.MensajeRepository;
+import cl.duoc.mpaz.mensajeria.repository.RepositorioMensajes;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class MensajeService {
@@ -27,21 +25,16 @@ public class MensajeService {
 
     private static final Set<String> CANALES = Set.of("Correo electrónico", "SMS", "WhatsApp");
 
-    private final MensajeRepository mensajeRepository;
-    private final MensajeDestinatarioRepository destinatarioRepository;
-    private final HistorialClient historialClient;
+    private final RepositorioMensajes repositorio;
+    private final RegistradorHistorial registradorHistorial;
 
-    public MensajeService(MensajeRepository mensajeRepository,
-                          MensajeDestinatarioRepository destinatarioRepository,
-                          HistorialClient historialClient) {
-        this.mensajeRepository = mensajeRepository;
-        this.destinatarioRepository = destinatarioRepository;
-        this.historialClient = historialClient;
+    public MensajeService(RepositorioMensajes repositorio, RegistradorHistorial registradorHistorial) {
+        this.repositorio = repositorio;
+        this.registradorHistorial = registradorHistorial;
     }
 
-    @Transactional
     public MensajeResponse crearBorrador(MensajeRequest solicitud) {
-        Mensaje mensaje = mensajeRepository.save(Mensaje.builder()
+        Mensaje mensaje = repositorio.guardar(Mensaje.builder()
                 .titulo(solicitud.titulo().trim())
                 .cuerpo(solicitud.cuerpo())
                 .tipo(solicitud.tipo())
@@ -55,7 +48,6 @@ public class MensajeService {
         return MensajeResponse.desde(mensaje, 0);
     }
 
-    @Transactional
     public MensajeResponse enviar(Long id, EnvioRequest solicitud) {
         Mensaje mensaje = buscar(id);
         if (ENVIADA.equals(mensaje.getEstado())) {
@@ -69,7 +61,7 @@ public class MensajeService {
         }
         List<String> nombres = new ArrayList<>();
         for (DestinatarioRequest destinatario : solicitud.destinatarios()) {
-            destinatarioRepository.save(MensajeDestinatario.builder()
+            repositorio.guardarDestinatario(MensajeDestinatario.builder()
                     .mensajeId(mensaje.getId())
                     .apoderadoId(destinatario.apoderadoId())
                     .apoderadoNombre(destinatario.nombre())
@@ -79,9 +71,9 @@ public class MensajeService {
         mensaje.setCanal(solicitud.canal());
         mensaje.setEstado(ENVIADA);
         mensaje.setFecha(LocalDateTime.now());
-        Mensaje guardado = mensajeRepository.save(mensaje);
+        Mensaje guardado = repositorio.guardar(mensaje);
 
-        historialClient.registrar(new RegistroHistoricoRequest(
+        registradorHistorial.registrar(new RegistroHistoricoRequest(
                 guardado.getId(),
                 guardado.getTitulo(),
                 guardado.getTipo(),
@@ -94,28 +86,19 @@ public class MensajeService {
         return MensajeResponse.desde(guardado, nombres.size());
     }
 
-    @Transactional(readOnly = true)
     public MensajeResponse obtener(Long id) {
         Mensaje mensaje = buscar(id);
-        return MensajeResponse.desde(mensaje, destinatarioRepository.countByMensajeId(id));
+        return MensajeResponse.desde(mensaje, repositorio.contarDestinatarios(id));
     }
 
-    @Transactional(readOnly = true)
     public List<MensajeResponse> listarPorRemitente(Long remitenteId) {
-        return mensajeRepository.findByRemitenteIdOrderByIdDesc(remitenteId).stream()
-                .map(mensaje -> MensajeResponse.desde(mensaje, destinatarioRepository.countByMensajeId(mensaje.getId())))
+        return repositorio.listarPorRemitente(remitenteId).stream()
+                .map(mensaje -> MensajeResponse.desde(mensaje, repositorio.contarDestinatarios(mensaje.getId())))
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public long contarBorradores(Long remitenteId) {
-        return listarPorRemitente(remitenteId).stream()
-                .filter(mensaje -> BORRADOR.equals(mensaje.estado()))
-                .count();
-    }
-
     private Mensaje buscar(Long id) {
-        return mensajeRepository.findById(id)
+        return repositorio.buscarPorId(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe la comunicación con id " + id));
     }
 }

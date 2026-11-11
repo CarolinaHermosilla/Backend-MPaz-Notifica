@@ -1,78 +1,106 @@
 package cl.duoc.mpaz.historial;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import cl.duoc.mpaz.historial.dto.RegistroRequest;
 import cl.duoc.mpaz.historial.dto.RegistroResponse;
 import cl.duoc.mpaz.historial.entities.RegistroHistorico;
 import cl.duoc.mpaz.historial.exceptions.RecursoNoEncontradoException;
-import cl.duoc.mpaz.historial.repository.HistorialRepository;
+import cl.duoc.mpaz.historial.repository.RepositorioHistorial;
 import cl.duoc.mpaz.historial.services.HistorialService;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
 class HistorialServiceTest {
 
-    @Mock
-    private HistorialRepository historialRepository;
+    private RepositorioHistorialEnMemoria repositorio;
+    private HistorialService servicio;
 
-    @InjectMocks
-    private HistorialService historialService;
+    @BeforeEach
+    void preparar() {
+        repositorio = new RepositorioHistorialEnMemoria();
+        servicio = new HistorialService(repositorio);
+    }
 
     @Test
-    void registrarUnEnvioGuardaCantidadYDestinatarios() {
-        when(historialRepository.save(any(RegistroHistorico.class))).thenAnswer(invocacion -> {
-            RegistroHistorico registro = invocacion.getArgument(0);
-            registro.setId(1L);
-            return registro;
-        });
-
-        RegistroResponse respuesta = historialService.registrar(new RegistroRequest(
+    @DisplayName("Registrar un envío guarda la cantidad de destinatarios")
+    void registrarGuardaCantidad() {
+        RegistroResponse respuesta = servicio.registrar(new RegistroRequest(
                 10L, "Citación", "Citación", "SMS", LocalDateTime.now(), 1L, "Andrea Muñoz",
                 List.of("Rocío Alarcón Vega", "Marcelo Bustos Pinto")));
 
         assertEquals(2, respuesta.cantidadDestinatarios());
         assertEquals("SMS", respuesta.canal());
-        assertFalse(respuesta.destinatarios().isEmpty());
+        assertEquals(2, respuesta.destinatarios().size());
+        assertEquals(1, repositorio.listarOrdenados().size());
     }
 
     @Test
-    void listarDevuelveLosRegistros() {
-        RegistroHistorico registro = RegistroHistorico.builder()
-                .id(2L)
-                .mensajeId(11L)
-                .titulo("Reunión de apoderados")
-                .tipo("Citación")
-                .canal("WhatsApp")
-                .fecha(LocalDateTime.now())
-                .remitenteId(1L)
-                .remitenteNombre("Andrea Muñoz")
-                .cantidadDestinatarios(3)
-                .destinatarios("Rocío Alarcón Vega|Marcelo Bustos Pinto|Paula Cárdenas Muñoz")
-                .build();
-        when(historialRepository.findAllByOrderByFechaDesc()).thenReturn(List.of(registro));
+    @DisplayName("Si no llega el canal queda registrado como sin canal")
+    void sinCanalQuedaComoValorPorDefecto() {
+        RegistroResponse respuesta = servicio.registrar(new RegistroRequest(
+                11L, "Aviso", null, null, null, null, null, List.of()));
 
-        List<RegistroResponse> registros = historialService.listar();
-
-        assertEquals(1, registros.size());
-        assertEquals(3, registros.get(0).destinatarios().size());
+        assertEquals("Sin canal", respuesta.canal());
+        assertEquals("Sin tipo", respuesta.tipo());
+        assertEquals("Sin remitente", respuesta.remitenteNombre());
+        assertEquals(0, respuesta.cantidadDestinatarios());
     }
 
     @Test
-    void buscarUnRegistroQueNoExisteFalla() {
-        when(historialRepository.findById(99L)).thenReturn(Optional.empty());
+    @DisplayName("El listado trae los registros del más nuevo al más antiguo")
+    void listarOrdenadoPorFecha() {
+        servicio.registrar(new RegistroRequest(1L, "Primera", "Aviso", "SMS",
+                LocalDateTime.of(2026, 11, 1, 9, 0), 1L, "Andrea", List.of("Uno")));
+        servicio.registrar(new RegistroRequest(2L, "Segunda", "Aviso", "WhatsApp",
+                LocalDateTime.of(2026, 11, 5, 9, 0), 1L, "Andrea", List.of("Dos")));
 
-        assertThrows(RecursoNoEncontradoException.class, () -> historialService.obtener(99L));
+        List<RegistroResponse> registros = servicio.listar();
+
+        assertEquals(2, registros.size());
+        assertEquals("Segunda", registros.get(0).titulo());
+    }
+
+    @Test
+    @DisplayName("Buscar un registro que no existe lanza error")
+    void registroInexistenteFalla() {
+        assertThrows(RecursoNoEncontradoException.class, () -> servicio.obtener(99L));
+    }
+
+    private static class RepositorioHistorialEnMemoria implements RepositorioHistorial {
+
+        private final Map<Long, RegistroHistorico> datos = new LinkedHashMap<>();
+        private long siguienteId = 1;
+
+        @Override
+        public List<RegistroHistorico> listarOrdenados() {
+            return datos.values().stream()
+                    .sorted(Comparator.comparing(RegistroHistorico::getFecha).reversed())
+                    .toList();
+        }
+
+        @Override
+        public Optional<RegistroHistorico> buscarPorId(Long id) {
+            return Optional.ofNullable(datos.get(id));
+        }
+
+        @Override
+        public RegistroHistorico guardar(RegistroHistorico registro) {
+            if (registro.getId() == null) {
+                registro.setId(siguienteId++);
+            }
+            datos.put(registro.getId(), registro);
+            return registro;
+        }
     }
 }

@@ -85,32 +85,41 @@ de 5.º Básico B y los grupos Taller de Ajedrez, Taller de Teatro y Directiva d
 
 ## Pruebas unitarias
 
-Cada servicio tiene sus pruebas con **JUnit 5 y Mockito**:
+Cada servicio tiene sus pruebas con **JUnit 5**, sin Mockito y sin levantar el contexto de Spring: son
+pruebas unitarias de la lógica de los servicios. Los repositorios se reemplazan por implementaciones en
+memoria escritas a mano dentro de la misma prueba.
 
 ```powershell
 cd ms-usuarios
 .\mvnw.cmd test
 ```
 
-| Servicio | Pruebas |
-|---|---|
-| `ms-usuarios` | 9 |
-| `ms-mensajeria` | 5 |
-| `ms-historial` | 4 |
+| Servicio | Pruebas | Qué se prueba |
+|---|---|---|
+| `ms-usuarios` | 10 | Crear cuentas, correo repetido, rol inválido, cambio de rol, grupos con sus integrantes, grupo repetido, grupo sin integrantes, eliminación de grupos |
+| `ms-mensajeria` | 5 | Borrador sin fecha ni canal, envío sin destinatarios, canal inválido, envío correcto y aviso al historial, doble envío |
+| `ms-historial` | 4 | Registro de un envío, valores por defecto, orden del listado, registro inexistente |
 
 ## Perfiles
 
 - **dev** (por defecto): H2 en memoria, `ddl-auto=create-drop`, sin configuración extra.
-- **prod**: Postgres. Se configura con variables de entorno:
+- **prod**: Postgres en Supabase. La URL y el usuario vienen con valores por defecto y la contraseña se
+  entrega por variable de entorno:
 
-| Variable | Ejemplo |
+| Variable | Valor |
 |---|---|
 | `SPRING_PROFILES_ACTIVE` | `prod` |
-| `DB_URL` | `jdbc:postgresql://aws-0-sa-east-1.pooler.supabase.com:5432/postgres?sslmode=require` |
-| `DB_USER` | usuario de la base |
-| `DB_PASSWORD` | contraseña de la base |
-| `HISTORIAL_URL` | `https://ms-historial.onrender.com` (solo en `ms-mensajeria`) |
+| `DB_PASSWORD` | contraseña del proyecto de Supabase |
+| `DB_URL` | opcional: por defecto `jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require&currentSchema=<usuarios|mensajeria|historial>` |
+| `DB_USER` | opcional: por defecto `postgres.xgbjpmynwghfcphjjfgo` |
+| `HISTORIAL_URL` | solo en `ms-mensajeria`: la URL pública de `ms-historial` |
 | `PORT` | lo asigna la plataforma, el servicio lo respeta |
+
+Los tres servicios comparten el mismo proyecto de Supabase y cada uno trabaja en su propio esquema
+(`usuarios`, `mensajeria`, `historial`), que ya están creados.
+
+Para levantar los tres servicios conectados a Supabase en este computador hay un script local:
+`_local\iniciar-supabase.ps1`. Ese archivo no se sube al repositorio porque tiene la contraseña.
 
 ## Docker
 
@@ -124,12 +133,17 @@ docker compose up -d --build
 
 ## Despliegue en la nube
 
-1. Crear la base de datos en **Supabase** (Postgres) y copiar la cadena de conexión.
-2. En **Render**, crear un *Web Service* por cada servicio apuntando a su carpeta
+La base de datos ya está creada en **Supabase** (Postgres 17) con los esquemas `usuarios`, `mensajeria`
+e `historial`.
+
+1. En **Render**, crear un *Web Service* por cada servicio apuntando a su carpeta
    (`ms-usuarios`, `ms-mensajeria`, `ms-historial`) con el `Dockerfile` incluido.
-3. Cargar las variables de entorno de la tabla anterior. En `ms-mensajeria`, `HISTORIAL_URL` debe ser
+2. Cargar las variables de entorno de la tabla anterior. En `ms-mensajeria`, `HISTORIAL_URL` debe ser
    la URL pública de `ms-historial`.
-4. Verificar `/actuator/health` de cada servicio antes de probar la aplicación.
+3. Verificar `/actuator/health` de cada servicio antes de probar la aplicación.
+
+> El host directo de Supabase (`db.<proyecto>.supabase.co`) responde solo por IPv6; por eso los servicios
+> usan el *pooler* (`aws-1-us-east-1.pooler.supabase.com`), que sí tiene IPv4.
 
 ## Estructura
 

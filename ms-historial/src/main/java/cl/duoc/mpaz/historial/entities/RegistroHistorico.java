@@ -49,6 +49,6 @@ public class RegistroHistorico {
     @Column(nullable = false)
     private int cantidadDestinatarios;
 
-    @Lob
+    @Column(length = 8000)
     private String destinatarios;
 }

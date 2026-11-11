@@ -28,8 +28,7 @@ public class Mensaje {
     @Column(nullable = false, length = 150)
     private String titulo;
 
-    @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, length = 8000)
     private String cuerpo;
 
     @Column(nullable = false, length = 60)

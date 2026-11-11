@@ -7,3 +7,5 @@ target/
 .vscode/
 .env
 *.log
+_generador/
+_local/

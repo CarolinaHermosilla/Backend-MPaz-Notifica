@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 @Component
-public class HistorialClient {
+public class HistorialClient implements RegistradorHistorial {
 
     private static final Logger registro = LoggerFactory.getLogger(HistorialClient.class);
 
@@ -18,6 +18,7 @@ public class HistorialClient {
         this.restClient = constructor.baseUrl(urlHistorial).build();
     }
 
+    @Override
     public void registrar(RegistroHistoricoRequest solicitud) {
         try {
             restClient.post()

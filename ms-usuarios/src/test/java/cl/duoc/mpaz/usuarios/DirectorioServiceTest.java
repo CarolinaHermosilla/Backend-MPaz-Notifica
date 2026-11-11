@@ -3,10 +3,6 @@ package cl.duoc.mpaz.usuarios;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import cl.duoc.mpaz.usuarios.dto.GrupoRequest;
 import cl.duoc.mpaz.usuarios.dto.GrupoResponse;
@@ -14,76 +10,154 @@ import cl.duoc.mpaz.usuarios.entities.Apoderado;
 import cl.duoc.mpaz.usuarios.entities.Grupo;
 import cl.duoc.mpaz.usuarios.entities.GrupoIntegrante;
 import cl.duoc.mpaz.usuarios.exceptions.SolicitudInvalidaException;
-import cl.duoc.mpaz.usuarios.repository.ApoderadoRepository;
-import cl.duoc.mpaz.usuarios.repository.GrupoIntegranteRepository;
-import cl.duoc.mpaz.usuarios.repository.GrupoRepository;
+import cl.duoc.mpaz.usuarios.repository.RepositorioDirectorio;
 import cl.duoc.mpaz.usuarios.services.DirectorioService;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
 class DirectorioServiceTest {
 
-    @Mock
-    private ApoderadoRepository apoderadoRepository;
+    private RepositorioDirectorioEnMemoria repositorio;
+    private DirectorioService servicio;
 
-    @Mock
-    private GrupoRepository grupoRepository;
-
-    @Mock
-    private GrupoIntegranteRepository grupoIntegranteRepository;
-
-    @InjectMocks
-    private DirectorioService directorioService;
+    @BeforeEach
+    void preparar() {
+        repositorio = new RepositorioDirectorioEnMemoria();
+        repositorio.agregarApoderado(1L, "Marcelo Bustos Pinto");
+        repositorio.agregarApoderado(2L, "Héctor Fuentes Navarro");
+        repositorio.agregarGrupo(5L, "Taller de Ajedrez", 1L, 2L);
+        servicio = new DirectorioService(repositorio);
+    }
 
     @Test
-    void losGruposDevuelvenSusIntegrantes() {
-        Grupo grupo = Grupo.builder().id(5L).nombre("Taller de Ajedrez").creadoPorTaller(true).build();
-        Apoderado primero = Apoderado.builder().id(1L).nombre("Marcelo Bustos Pinto").build();
-        Apoderado segundo = Apoderado.builder().id(2L).nombre("Héctor Fuentes Navarro").build();
-        when(grupoRepository.findAllByOrderByIdDesc()).thenReturn(List.of(grupo));
-        when(apoderadoRepository.findAll()).thenReturn(List.of(primero, segundo));
-        when(grupoIntegranteRepository.findByGrupoId(5L)).thenReturn(List.of(
-                GrupoIntegrante.builder().id(1L).grupoId(5L).apoderadoId(1L).build(),
-                GrupoIntegrante.builder().id(2L).grupoId(5L).apoderadoId(2L).build()));
-
-        List<GrupoResponse> grupos = directorioService.grupos();
+    @DisplayName("Cada grupo se devuelve con sus integrantes")
+    void gruposConSusIntegrantes() {
+        List<GrupoResponse> grupos = servicio.grupos();
 
         assertEquals(1, grupos.size());
+        assertEquals("Taller de Ajedrez", grupos.get(0).nombre());
         assertEquals(2, grupos.get(0).cantidadIntegrantes());
         assertTrue(grupos.get(0).integrantes().contains("Marcelo Bustos Pinto"));
     }
 
     @Test
-    void noSePuedeCrearUnGrupoConNombreRepetido() {
-        when(grupoRepository.existsByNombreIgnoreCase("Directiva del curso")).thenReturn(true);
-
+    @DisplayName("No se puede repetir el nombre de un grupo")
+    void nombreRepetidoFalla() {
         assertThrows(SolicitudInvalidaException.class,
-                () -> directorioService.crear(new GrupoRequest("Directiva del curso", "descripcion", List.of(1L))));
-        verify(grupoRepository, never()).save(any(Grupo.class));
+                () -> servicio.crear(new GrupoRequest("Taller de Ajedrez", "otra vez", List.of(1L))));
+        assertEquals(1, repositorio.gruposOrdenados().size());
     }
 
     @Test
-    void noSePuedeCrearUnGrupoSinIntegrantes() {
-        when(grupoRepository.existsByNombreIgnoreCase("Nuevo grupo")).thenReturn(false);
-
+    @DisplayName("Un grupo necesita al menos un apoderado")
+    void grupoSinIntegrantesFalla() {
         assertThrows(SolicitudInvalidaException.class,
-                () -> directorioService.crear(new GrupoRequest("Nuevo grupo", null, List.of())));
-        verify(grupoRepository, never()).save(any(Grupo.class));
+                () -> servicio.crear(new GrupoRequest("Nuevo grupo", null, List.of())));
     }
 
     @Test
-    void eliminarUnGrupoBorraTambienSusIntegrantes() {
-        when(grupoRepository.existsById(7L)).thenReturn(true);
+    @DisplayName("Se crea el grupo con sus integrantes")
+    void crearGrupoConIntegrantes() {
+        GrupoResponse creado = servicio.crear(new GrupoRequest("Apoderados porteros", "colaboran", List.of(1L, 2L)));
 
-        directorioService.eliminar(7L);
+        assertEquals("Apoderados porteros", creado.nombre());
+        assertEquals(2, creado.cantidadIntegrantes());
+        assertEquals(2, repositorio.gruposOrdenados().size());
+    }
 
-        verify(grupoIntegranteRepository).deleteByGrupoId(7L);
-        verify(grupoRepository).deleteById(7L);
+    @Test
+    @DisplayName("Al eliminar un grupo se borran sus integrantes")
+    void eliminarGrupoBorraIntegrantes() {
+        servicio.eliminar(5L);
+
+        assertTrue(repositorio.gruposOrdenados().isEmpty());
+        assertTrue(repositorio.integrantesDe(5L).isEmpty());
+    }
+
+    private static class RepositorioDirectorioEnMemoria implements RepositorioDirectorio {
+
+        private final Map<Long, Apoderado> apoderados = new LinkedHashMap<>();
+        private final Map<Long, Grupo> grupos = new LinkedHashMap<>();
+        private final Map<Long, List<GrupoIntegrante>> integrantes = new LinkedHashMap<>();
+        private long siguienteGrupo = 100;
+
+        void agregarApoderado(Long id, String nombre) {
+            apoderados.put(id, Apoderado.builder().id(id).nombre(nombre).estudiante("Estudiante").curso("5.º Básico B").build());
+        }
+
+        void agregarGrupo(Long id, String nombre, Long... idsApoderados) {
+            grupos.put(id, Grupo.builder().id(id).nombre(nombre).creadoPorTaller(true).build());
+            List<GrupoIntegrante> lista = new ArrayList<>();
+            for (Long apoderadoId : idsApoderados) {
+                lista.add(GrupoIntegrante.builder().grupoId(id).apoderadoId(apoderadoId).build());
+            }
+            integrantes.put(id, lista);
+        }
+
+        @Override
+        public List<Apoderado> apoderadosOrdenados() {
+            return new ArrayList<>(apoderados.values());
+        }
+
+        @Override
+        public List<Apoderado> apoderados() {
+            return new ArrayList<>(apoderados.values());
+        }
+
+        @Override
+        public boolean existeApoderado(Long id) {
+            return apoderados.containsKey(id);
+        }
+
+        @Override
+        public List<Grupo> gruposOrdenados() {
+            return new ArrayList<>(grupos.values());
+        }
+
+        @Override
+        public boolean existeGrupo(Long id) {
+            return grupos.containsKey(id);
+        }
+
+        @Override
+        public boolean existeGrupoPorNombre(String nombre) {
+            return grupos.values().stream().anyMatch(grupo -> grupo.getNombre().equalsIgnoreCase(nombre));
+        }
+
+        @Override
+        public Grupo guardarGrupo(Grupo grupo) {
+            if (grupo.getId() == null) {
+                grupo.setId(siguienteGrupo++);
+            }
+            grupos.put(grupo.getId(), grupo);
+            integrantes.putIfAbsent(grupo.getId(), new ArrayList<>());
+            return grupo;
+        }
+
+        @Override
+        public void borrarGrupo(Long id) {
+            grupos.remove(id);
+        }
+
+        @Override
+        public List<GrupoIntegrante> integrantesDe(Long grupoId) {
+            return integrantes.getOrDefault(grupoId, new ArrayList<>());
+        }
+
+        @Override
+        public GrupoIntegrante guardarIntegrante(GrupoIntegrante integrante) {
+            integrantes.computeIfAbsent(integrante.getGrupoId(), clave -> new ArrayList<>()).add(integrante);
+            return integrante;
+        }
+
+        @Override
+        public void borrarIntegrantesDe(Long grupoId) {
+            integrantes.put(grupoId, new ArrayList<>());
+        }
     }
 }

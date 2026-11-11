@@ -4,37 +4,31 @@ import cl.duoc.mpaz.historial.dto.RegistroRequest;
 import cl.duoc.mpaz.historial.dto.RegistroResponse;
 import cl.duoc.mpaz.historial.entities.RegistroHistorico;
 import cl.duoc.mpaz.historial.exceptions.RecursoNoEncontradoException;
-import cl.duoc.mpaz.historial.repository.HistorialRepository;
+import cl.duoc.mpaz.historial.repository.RepositorioHistorial;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class HistorialService {
 
-    private final HistorialRepository historialRepository;
+    private final RepositorioHistorial repositorio;
 
-    public HistorialService(HistorialRepository historialRepository) {
-        this.historialRepository = historialRepository;
+    public HistorialService(RepositorioHistorial repositorio) {
+        this.repositorio = repositorio;
     }
 
-    @Transactional(readOnly = true)
     public List<RegistroResponse> listar() {
-        return historialRepository.findAllByOrderByFechaDesc().stream()
-                .map(RegistroResponse::desde)
-                .toList();
+        return repositorio.listarOrdenados().stream().map(RegistroResponse::desde).toList();
     }
 
-    @Transactional(readOnly = true)
     public RegistroResponse obtener(Long id) {
         return RegistroResponse.desde(buscar(id));
     }
 
-    @Transactional
     public RegistroResponse registrar(RegistroRequest solicitud) {
         List<String> destinatarios = solicitud.destinatarios() == null ? List.of() : solicitud.destinatarios();
-        RegistroHistorico registro = historialRepository.save(RegistroHistorico.builder()
+        RegistroHistorico registro = repositorio.guardar(RegistroHistorico.builder()
                 .mensajeId(solicitud.mensajeId())
                 .titulo(solicitud.titulo())
                 .tipo(solicitud.tipo() == null ? "Sin tipo" : solicitud.tipo())
@@ -49,7 +43,7 @@ public class HistorialService {
     }
 
     private RegistroHistorico buscar(Long id) {
-        return historialRepository.findById(id)
+        return repositorio.buscarPorId(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe el registro con id " + id));
     }
 }
