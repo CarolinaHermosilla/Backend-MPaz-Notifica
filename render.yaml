@@ -1,0 +1,53 @@
+services:
+  - type: web
+    name: mpaz-usuarios
+    runtime: docker
+    plan: free
+    region: virginia
+    rootDir: ms-usuarios
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_PASSWORD
+        sync: false
+      - key: JAVA_OPTS
+        value: -Xmx300m -XX:+UseSerialGC
+
+  - type: web
+    name: mpaz-historial
+    runtime: docker
+    plan: free
+    region: virginia
+    rootDir: ms-historial
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_PASSWORD
+        sync: false
+      - key: JAVA_OPTS
+        value: -Xmx300m -XX:+UseSerialGC
+
+  - type: web
+    name: mpaz-mensajeria
+    runtime: docker
+    plan: free
+    region: virginia
+    rootDir: ms-mensajeria
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_PASSWORD
+        sync: false
+      - key: JAVA_OPTS
+        value: -Xmx300m -XX:+UseSerialGC
+      - key: HISTORIAL_URL
+        fromService:
+          type: web
+          name: mpaz-historial
+          property: host

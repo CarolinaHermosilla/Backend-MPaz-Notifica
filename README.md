@@ -136,11 +136,19 @@ docker compose up -d --build
 La base de datos ya está creada en **Supabase** (Postgres 17) con los esquemas `usuarios`, `mensajeria`
 e `historial`.
 
-1. En **Render**, crear un *Web Service* por cada servicio apuntando a su carpeta
-   (`ms-usuarios`, `ms-mensajeria`, `ms-historial`) con el `Dockerfile` incluido.
-2. Cargar las variables de entorno de la tabla anterior. En `ms-mensajeria`, `HISTORIAL_URL` debe ser
-   la URL pública de `ms-historial`.
-3. Verificar `/actuator/health` de cada servicio antes de probar la aplicación.
+El repositorio incluye **`render.yaml`**, un plano de Render que crea los tres servicios de una sola vez:
+en Render se elige *New → Blueprint*, se conecta este repositorio y se escribe la contraseña de Supabase
+cuando la pida. Cada servicio queda como un *Web Service* con su `Dockerfile`, su `rootDir` y las
+variables de entorno ya definidas (`SPRING_PROFILES_ACTIVE=prod`, `JAVA_OPTS` y `HISTORIAL_URL`
+apuntando al servicio de historial).
+
+Si se prefiere crear los servicios a mano:
+
+1. En **Render**, *New → Web Service* por cada servicio, conectando este repositorio.
+2. Elegir *Docker* como entorno, con `rootDir` en la carpeta del servicio (`ms-usuarios`,
+   `ms-mensajeria`, `ms-historial`) y la ruta del Dockerfile en `./Dockerfile`.
+3. Cargar las variables de entorno de la tabla anterior.
+4. Verificar `/actuator/health` de cada servicio antes de probar la aplicación.
 
 > El host directo de Supabase (`db.<proyecto>.supabase.co`) responde solo por IPv6; por eso los servicios
 > usan el *pooler* (`aws-1-us-east-1.pooler.supabase.com`), que sí tiene IPv4.

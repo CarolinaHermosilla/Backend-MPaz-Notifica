@@ -15,7 +15,8 @@ public class HistorialClient implements RegistradorHistorial {
     private final RestClient restClient;
 
     public HistorialClient(RestClient.Builder constructor, @Value("${historial.url}") String urlHistorial) {
-        this.restClient = constructor.baseUrl(urlHistorial).build();
+        String base = urlHistorial.startsWith("http") ? urlHistorial : "https://" + urlHistorial;
+        this.restClient = constructor.baseUrl(base).build();
     }
 
     @Override
