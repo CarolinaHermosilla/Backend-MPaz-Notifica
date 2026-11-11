@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface HistorialRepository extends JpaRepository<RegistroHistorico, Long> {
 
     List<RegistroHistorico> findAllByOrderByFechaDesc();
+
+    List<RegistroHistorico> findByRemitenteIdOrderByFechaDesc(Long remitenteId);
 }

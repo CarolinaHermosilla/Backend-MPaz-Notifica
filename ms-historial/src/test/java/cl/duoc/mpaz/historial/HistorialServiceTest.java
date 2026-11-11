@@ -65,10 +65,24 @@ class HistorialServiceTest {
         servicio.registrar(new RegistroRequest(2L, "Segunda", "Aviso", "WhatsApp",
                 LocalDateTime.of(2026, 11, 5, 9, 0), 1L, "Andrea", List.of("Dos")));
 
-        List<RegistroResponse> registros = servicio.listar();
+        List<RegistroResponse> registros = servicio.listar(null);
 
         assertEquals(2, registros.size());
         assertEquals("Segunda", registros.get(0).titulo());
+    }
+
+    @Test
+    @DisplayName("Si se pide por remitente, solo devuelve sus envíos")
+    void listarPorRemitenteFiltra() {
+        servicio.registrar(new RegistroRequest(1L, "De Andrea", "Aviso", "SMS",
+                LocalDateTime.of(2026, 11, 1, 9, 0), 1L, "Andrea", List.of("Uno")));
+        servicio.registrar(new RegistroRequest(2L, "De Mario", "Aviso", "SMS",
+                LocalDateTime.of(2026, 11, 2, 9, 0), 2L, "Mario", List.of("Dos")));
+
+        List<RegistroResponse> soloAndrea = servicio.listar(1L);
+
+        assertEquals(1, soloAndrea.size());
+        assertEquals("De Andrea", soloAndrea.get(0).titulo());
     }
 
     @Test
@@ -86,6 +100,13 @@ class HistorialServiceTest {
         public List<RegistroHistorico> listarOrdenados() {
             return datos.values().stream()
                     .sorted(Comparator.comparing(RegistroHistorico::getFecha).reversed())
+                    .toList();
+        }
+
+        @Override
+        public List<RegistroHistorico> listarPorRemitente(Long remitenteId) {
+            return listarOrdenados().stream()
+                    .filter(registro -> registro.getRemitenteId().equals(remitenteId))
                     .toList();
         }
 

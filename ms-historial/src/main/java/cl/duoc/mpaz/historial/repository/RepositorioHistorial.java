@@ -8,6 +8,8 @@ public interface RepositorioHistorial {
 
     List<RegistroHistorico> listarOrdenados();
 
+    List<RegistroHistorico> listarPorRemitente(Long remitenteId);
+
     Optional<RegistroHistorico> buscarPorId(Long id);
 
     RegistroHistorico guardar(RegistroHistorico registro);

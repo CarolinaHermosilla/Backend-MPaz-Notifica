@@ -25,6 +25,14 @@ public class HistorialService {
         return repositorio.listarOrdenados().stream().map(RegistroResponse::desde).toList();
     }
 
+    /** Si se indica el remitente, solo devuelve los envios de esa persona. */
+    public List<RegistroResponse> listar(Long remitenteId) {
+        if (remitenteId == null) {
+            return listar();
+        }
+        return repositorio.listarPorRemitente(remitenteId).stream().map(RegistroResponse::desde).toList();
+    }
+
     public RegistroResponse obtener(Long id) {
         return RegistroResponse.desde(buscar(id));
     }

@@ -20,6 +20,11 @@ public class AdaptadorHistorial implements RepositorioHistorial {
     }
 
     @Override
+    public List<RegistroHistorico> listarPorRemitente(Long remitenteId) {
+        return historialRepository.findByRemitenteIdOrderByFechaDesc(remitenteId);
+    }
+
+    @Override
     public Optional<RegistroHistorico> buscarPorId(Long id) {
         return historialRepository.findById(id);
     }

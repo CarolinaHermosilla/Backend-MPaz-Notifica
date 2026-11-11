@@ -1,6 +1,7 @@
 package cl.duoc.mpaz.historial.dto;
 
 import cl.duoc.mpaz.historial.entities.RegistroHistorico;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -11,6 +12,7 @@ public record RegistroResponse(
         String titulo,
         String tipo,
         String canal,
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
         LocalDateTime fecha,
         Long remitenteId,
         String remitenteNombre,
