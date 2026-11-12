@@ -86,6 +86,18 @@ class HistorialServiceTest {
     }
 
     @Test
+    @DisplayName("Un mismo envío no se registra dos veces")
+    void registrarDosVecesElMismoEnvioNoDuplica() {
+        RegistroRequest solicitud = new RegistroRequest(10L, "Citación", "Citación", "SMS",
+                LocalDateTime.now(), 1L, "Andrea", List.of("Rocío Alarcón Vega"));
+
+        servicio.registrar(solicitud);
+        servicio.registrar(solicitud);
+
+        assertEquals(1, repositorio.listarOrdenados().size());
+    }
+
+    @Test
     @DisplayName("Buscar un registro que no existe lanza error")
     void registroInexistenteFalla() {
         assertThrows(RecursoNoEncontradoException.class, () -> servicio.obtener(99L));
@@ -113,6 +125,13 @@ class HistorialServiceTest {
         @Override
         public Optional<RegistroHistorico> buscarPorId(Long id) {
             return Optional.ofNullable(datos.get(id));
+        }
+
+        @Override
+        public Optional<RegistroHistorico> buscarPorMensajeId(Long mensajeId) {
+            return datos.values().stream()
+                    .filter(registro -> registro.getMensajeId().equals(mensajeId))
+                    .findFirst();
         }
 
         @Override

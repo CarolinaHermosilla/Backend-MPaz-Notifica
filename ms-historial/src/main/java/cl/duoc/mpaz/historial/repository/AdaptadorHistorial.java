@@ -30,6 +30,11 @@ public class AdaptadorHistorial implements RepositorioHistorial {
     }
 
     @Override
+    public Optional<RegistroHistorico> buscarPorMensajeId(Long mensajeId) {
+        return historialRepository.findFirstByMensajeId(mensajeId);
+    }
+
+    @Override
     public RegistroHistorico guardar(RegistroHistorico registro) {
         return historialRepository.save(registro);
     }

@@ -8,6 +8,7 @@ import cl.duoc.mpaz.historial.repository.RepositorioHistorial;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -38,6 +39,12 @@ public class HistorialService {
     }
 
     public RegistroResponse registrar(RegistroRequest solicitud) {
+        // Un mismo envío no se registra dos veces: si la comunicación ya tiene su
+        // registro (lo haya creado el servicio de mensajería o la app), se devuelve ese.
+        Optional<RegistroHistorico> existente = repositorio.buscarPorMensajeId(solicitud.mensajeId());
+        if (existente.isPresent()) {
+            return RegistroResponse.desde(existente.get());
+        }
         List<String> destinatarios = solicitud.destinatarios() == null ? List.of() : solicitud.destinatarios();
         RegistroHistorico registro = repositorio.guardar(RegistroHistorico.builder()
                 .mensajeId(solicitud.mensajeId())

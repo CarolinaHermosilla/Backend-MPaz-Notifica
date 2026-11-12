@@ -12,5 +12,7 @@ public interface RepositorioHistorial {
 
     Optional<RegistroHistorico> buscarPorId(Long id);
 
+    Optional<RegistroHistorico> buscarPorMensajeId(Long mensajeId);
+
     RegistroHistorico guardar(RegistroHistorico registro);
 }
